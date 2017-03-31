@@ -1,0 +1,147 @@
+apply plugin: 'com.android.application'
+apply plugin: 'checkstyle'
+apply plugin: 'com.github.triplet.play'
+
+check.dependsOn 'checkstyle'
+
+task checkstyle(type: Checkstyle){
+    source 'src'
+    include '**/*.java'
+    // code from Google/AOSP
+    exclude 'main/java/org/kontalk/util/ThumbnailUtils.java',
+        'main/java/org/kontalk/crypto/PRNGFixes.java',
+        'main/java/org/kontalk/ui/AccountAuthenticatorActionBarActivity.java',
+        'main/java/org/kontalk/billing/*.java',
+        '*/java/org/kontalk/billing/GoogleBillingService.java',
+        '*/java/org/kontalk/billing/Inventory.java',
+        '*/java/org/kontalk/billing/ProductDetails.java',
+        '*/java/org/kontalk/billing/Purchase.java'
+    // 3rd-party code
+    exclude '**/CircularSeekBar.java',
+        '**/KeyboardAwareRelativeLayout.java', '**/FrameLayoutFixed.java',
+        '**/AbsListViewScrollDetector.java', '**/NoCacheMiniDnsResolver.java',
+        '**/XMPPTCPConnection.java',
+        'main/java/com/**'
+    def configProps = ['baseDir': projectDir.absolutePath]
+    configProperties configProps
+    classpath = files()
+}
+
+android {
+    compileSdkVersion 23
+    buildToolsVersion '23.0.3'
+
+    defaultConfig {
+        applicationId "org.kontalk"
+        versionCode 124
+        versionName "3.1.10"
+        targetSdkVersion 22
+        minSdkVersion 9
+        resConfigs "en", "de", "fr", "it", "es", "ca", "cs", "el", "fa", "gl", "ja", "nl", "pt", "ru", "sr", "zh-rCN", "ar"
+        resValue "string", "application_id", applicationId
+        resValue "string", "account_type", applicationId + '.account'
+        buildConfigField "String", "ACCOUNT_TYPE", '"' + applicationId + '.account"'
+        vectorDrawables.useSupportLibrary = true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
+
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFile 'proguard.cfg'
+            if (project.hasProperty('RELEASE_STORE_FILE') || System.getenv("TRAVIS"))
+                {}
+        }
+        debug {
+            applicationIdSuffix '.debug'
+            resValue "string", "application_id", defaultConfig.applicationId + '.debug'
+            resValue "string", "account_type", defaultConfig.applicationId + '.debug.account'
+            buildConfigField "String", "ACCOUNT_TYPE", '"' + defaultConfig.applicationId + '.debug.account"'
+            minifyEnabled true
+            proguardFile 'proguard.cfg'
+        }
+    }
+
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+    productFlavors {
+        basic {
+        }
+        googleplay {
+        }
+    }
+
+}
+
+dependencies {
+    compile (project(':client-common-java')) {
+        exclude group: 'net.sf.kxml'
+    }
+    compile project(':emojicon:library')
+    compile (project(':CircularReveal:circualreveal')) {
+        transitive = true;
+    }
+
+    compile "com.android.support:appcompat-v7:$appcompatVersion"
+
+    compile "com.android.support:design:$appcompatVersion"
+    compile "com.android.support:gridlayout-v7:$appcompatVersion"
+
+    compile "com.madgag.spongycastle:core:$spongyCastleVersion"
+    compile "com.madgag.spongycastle:prov:$spongyCastleVersion"
+    compile "com.madgag.spongycastle:pkix:$spongyCastleVersion"
+    compile "com.madgag.spongycastle:pg:$spongyCastleVersion"
+    compile 'info.guardianproject.netcipher:netcipher:1.2.1'
+    compile 'com.googlecode.libphonenumber:libphonenumber:7.2.8'
+    compile 'com.nineoldandroids:library:2.4.0'
+    compile 'com.google.zxing:core:3.2.1'
+    compile 'com.segment.backo:backo:1.0.0'
+    compile "org.igniterealtime.smack:smack-experimental:$smackVersion"
+    compile "org.igniterealtime.smack:smack-android-extensions:$smackVersion"
+    compile 'com.github.machinarius:preferencefragment:0.1.1'
+    compile('com.github.afollestad.material-dialogs:core:0.8.5.6@aar') {
+        transitive = true
+    }
+    compile('com.github.afollestad.material-dialogs:commons:0.8.5.6@aar') {
+        transitive = true
+    }
+    compile 'com.github.castorflex.smoothprogressbar:library:1.1.0'
+    compile 'com.nispok:snackbar:2.11.0'
+    compile 'de.hdodenhof:circleimageview:2.0.0'
+    compile 'com.github.vlivanov:ListViewVariants:f606578467'
+
+
+    testCompile 'junit:junit:4.+'
+    androidTestCompile 'com.jayway.android.robotium:robotium-solo:5.5.4'
+}
+
+if (System.getenv("TRAVIS")) {
+    play {
+        track = 'alpha'
+        jsonFile = rootProject.file('dist/googleplay-developer-key.json')
+    }
+
+    task publish(dependsOn: ['publishApkGoogleplayRelease']) {
+        group = 'Kontalk'
+        description = 'Publish to Google Play alpha channel'
+    }
+    publish.dependsOn 'testGoogleplayReleaseUnitTest'
+}
+else if (project.hasProperty('GOOGLE_PLAY_DEVELOPER_KEY_FILE')) {
+    play {
+        track = 'alpha'
+        jsonFile = file(GOOGLE_PLAY_DEVELOPER_KEY_FILE)
+    }
+}
