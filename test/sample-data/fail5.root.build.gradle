@@ -1,0 +1,120 @@
+buildscript {
+      dependencies {
+        repositories {
+            mavenCentral()
+            maven {
+                url "file:~/.m2/"
+                artifactUrls "file:~/.m2/"
+            }
+        }
+        classpath 'com.android.tools.build:gradle:0.12.1'
+        classpath 'org.robolectric:robolectric-gradle-plugin:0.11.+'
+    }
+}
+dependencies {
+      repositories {
+        mavenCentral()
+
+        mavenLocal()
+    }
+}
+def String getProjectProperty(String propertyName) {
+        String propertyValue = "null"
+        if (hasProperty(propertyName)) {
+            propertyValue = this.properties[propertyName]
+        } else {
+            throw GradleScriptException("PropertyName " + propertyName + " is not defined in properties file")
+        }
+        return propertyValue
+}
+
+apply plugin: "sonar-runner"
+sonarRunner {
+    sonarProperties {
+		property "sonar.host.url", getProjectProperty('sonar.host.url')
+		property "sonar.jdbc.url", getProjectProperty('sonar.db.url')
+		property "sonar.jdbc.username", getProjectProperty('sonar.db.user')
+		property "sonar.jdbc.password", getProjectProperty('sonar.db.password')
+    }
+}
+subprojects {
+    sonarRunner {
+        sonarProperties {
+			property "sonar.projectKey", project.name
+			property "sonar.projectName", project.name
+			property "sonar.projectVersion", "V1.0"
+			property "sonar.language", "java"
+			property "sonar.sources", "src"
+			property "sonar.binaries", "build/apk"
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    def projects=["custom_views","date-time-picker","widget","settings"]
+    for(String proj:projects){
+        def res_dir=rootDir.toString()+"/"+proj+"/res"
+        def res_v14_dir=rootDir.toString()+"/"+proj+"/res-v14"
+        def script = (rootDir.toString()+"/build/scripts/generate_v14_compatible_resources.py --res-dir "+res_dir+" --res-v14-compatibility-dir "+res_v14_dir+"").execute()
+        script.err.eachLine {line -> println "ERROR: " + line}
+        script.waitFor()
+        def res = fileTree(dir: res_dir)
+        def res_v14 =fileTree(dir: res_v14_dir)
+        delete proj+"/merged-res";
+        copy{
+            from (res_dir){
+                include '**/*.xml'
+            }
+            from (res_v14_dir){
+                include '**/*.xml'
+            }
+            into (rootDir.toString()+"/"+proj+"/merged-res") 
+        }
+    }
+}
+ext {
+    compileSdkVersion = 19
+    buildToolsVersion = "20.0.0"
+    minSDKVersion = 8
+}
+
+configure(allprojects) {
+    ext.androidSDKVersion = "19"
+    ext.androidBuildToolsVersion = "19.0"
+    ext.androidSupportVersion = "20.0.0"
+    ext.androidPluginVersion ="0.12.1"
+    ext.androidMinSDKVersion ="8"
+    ext.jodaLibraryVersion = "2.2"
+    ext.nineoldandroisVersion="2.4.0"
+    ext.robotiumVersion = "5.1"
+    ext.gsonVersion = "2.2.+"
+    ext.junitVersion = "4.11"
+    ext.guavaVersion = "17.0"
+    ext.butterknifeVersion = "5.1.1"
+}
+
+allprojects {
+    repositories {                   
+        mavenCentral()
+    }
+    gradle.projectsEvaluated {
+        tasks.withType(JavaCompile) {
+            options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+        }
+    }
+
+task checkTODO() {
+       exec {
+        executable 'bash'
+        args rootDir.toString()+'/build/checkTODO.sh'
+    }
+}
+
+task format() {
+       exec {
+        executable 'bash'
+        args rootDir.toString()+'/build/format.sh'
+    }
+}
+
+}
