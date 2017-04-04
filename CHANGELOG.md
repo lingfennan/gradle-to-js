@@ -7,3 +7,4 @@
 # Bugs To Fix #
 1. dependencies from fileTree and file
 2. dependencies from project
+3. complex dependencies, e.g. /data/gpl_violation/data/groundtruth-latest/SRC_comp/org.kontalk_124_src.tar.gz/app/build.gradle
